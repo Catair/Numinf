@@ -48,7 +48,7 @@ int main(void){
   srand(t);
 
   rows = 3;		/* Matrixzeilen */
-  cols = 4;		/* Matrixspalten */
+  cols = 3;		/* Matrixspalten */
 
   /* ----------------------------------------
      Speicher anfordern und Befuellen
@@ -64,7 +64,7 @@ int main(void){
   }
 
   /* Ausgabe Informationen und Matrix */
-  printf("\n rows = %d, cols = %d \n",rows, cols);
+  printf("\nrows = %d, cols = %d \n",rows, cols);
   min = (rows > cols ? cols : rows);
   printf("Minimum = %d \n", min);
   printf("\n a:\n");
@@ -74,12 +74,12 @@ int main(void){
      QR - Zerlegung durchfuehren und testen
      ---------------------------------------- */
 
-  qr_decomp(min(rows,cols), qr, rows, cols);
+  qr_decomp(rows, qr, rows, cols);
 
   printf("\n qr:\n");
   print_matrix(qr, rows, cols);
 
-  test_qr(min(rows,cols), a, qr, rows, cols);
+  test_qr(rows, a, qr, rows, cols);
 
   /* Speicherfreigabe */
   free(a);
@@ -137,30 +137,31 @@ qr_decomp(int ld, double* a, int rows, int cols){
 
             if(get_entry(a, ld, i,k) == 0.0) {
 
-                delta = 1;
-                c = 1;
-                s = 0;
+                delta = 1.0;
+                c = 1.0;
+                s = 0.0;
 
             }else{
 
                 if(fabs(get_entry(a, ld, k, k)) >= fabs(get_entry(a, ld, i, k))) {
 
                     tau = get_entry(a, ld, i, k) / get_entry(a, ld, k, k);
-                    delta = tau / sqrt(pow(tau,2) + 1);
+                    delta = tau / sqrt(tau*tau + 1.0);
                     s = delta;
-                    c = sqrt(1 - pow(s,2));
+                    c = sqrt(1.0 - s*s);
 
                 }else{
 
                 tau = get_entry(a, ld, k, k) / get_entry(a, ld, i, k);
-                delta = sqrt(pow(tau,2))/tau;
-                c = 1 / delta;
-                s = sqrt(1 - pow(c,2));
+                delta = sqrt((tau*tau)+1.0)/tau;
+                c = 1.0 / delta;
+                s = sqrt(1.0 - c*c);
 
                 }
             }
 
             set_entry(a, ld, k, k, ((c * get_entry(a, ld, k, k)) + (s * get_entry(a, ld, i, k))));
+            set_entry(a, ld, i, k, delta);
 
             for(j=k+1;j<cols;j++) {
 
@@ -176,30 +177,37 @@ void
 test_qr(int ld, double* a, double* qr, int rows, int cols){
 
     int i,j;
-    static int RUND = 100000;
+    static double RUND = 1.e8;      //1.e8 max Genauigkeit mit Int
     double b, r;
 
-    for(i=0;i<cols;i++) {
+    for(i=0;i<min(rows,cols);i++) {
 
-        a = 0;
-        r = 0;
+        b = 0.0;
+        r = 0.0;
 
         for(j=0;j<rows;j++) {          //berechnen der eukl. Norm in zwei Schritten 1. Summe unter der Wurzel
 
-            b = b + pow(get_entry(a, ld, j, i), 2);
-            r = r + pow(get_entry(qr, ld, j, i), 2);
+            b = b + (get_entry(a, ld, j, i))*(get_entry(a, ld, j, i));
+        }
+
+        for(j=0;j<=i;j++) {
+
+            r = r + (get_entry(qr, ld, j, i))*(get_entry(qr, ld, j, i));
         }
 
         //Wurzel der Normberechnung
         b = sqrt(b);
         r = sqrt(r);
 
+       //b = 3.0;
         //Vergleich der Normen auf n Nachkommastellen
         b = b * RUND;
         r = r * RUND;
+        //printf("\nb: %d, r: %d\n",(int)b,(int)r);
 
+        /*Verglichen werden die gerundeten Werte mal 10^8 */
         if((int)b != (int)r) {
-            printf("Fehler in Spalte %d Normen nicht identisch",i);
+            printf("Fehler in Spalte %d Normen nicht identisch.\n",i);
         }
     }
 }
