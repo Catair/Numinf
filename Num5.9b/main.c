@@ -25,7 +25,7 @@ test_qr(int ld, double* qr, double* x, double* bt, int rows, int cols);
 /* =============================== */
 
 int main(void){
-int rows, cols, min;
+  int rows, cols, min;
   double *x, *b, *bt, *qr;
 
   rows = 3;		/* Matrixzeilen */
@@ -39,22 +39,22 @@ int rows, cols, min;
   bt = (double *) malloc(sizeof(double) * rows);
   x = (double *) malloc(sizeof(double) * rows);
 
-  set_entry(qr, rows, 0, 0, 2.0);
-  set_entry(qr, rows, 0, 1, 1.0);
-  set_entry(qr, rows, 0, 2, 3.0);
-  set_entry(qr, rows, 1, 0, 4.0);
-  set_entry(qr, rows, 1, 1, 6.0);
-  set_entry(qr, rows, 1, 2, 0.0);
-  set_entry(qr, rows, 2, 0, 2.0);
-  set_entry(qr, rows, 2, 1, 6.0);
-  set_entry(qr, rows, 2, 2, 3.0);
+  set_entry(qr, rows, 0, 0, 3.0);
+  set_entry(qr, rows, 0, 1, -9.0);
+  set_entry(qr, rows, 0, 2, 7.0);
+  set_entry(qr, rows, 1, 0, -4.0);
+  set_entry(qr, rows, 1, 1, -13.0);
+  set_entry(qr, rows, 1, 2, -1.0);
+  set_entry(qr, rows, 2, 0, 0.0);
+  set_entry(qr, rows, 2, 1, -20.0);
+  set_entry(qr, rows, 2, 2, -35.0);
 
-  b[0] = 2.5;
-  b[1] = -2.0;
-  b[2] = 0.5;
+  b[0] = -3.0;
+  b[1] = -21.0;
+  b[2] = -20.0;
 
   /* Ausgabe Informationen und Matrix */
-  printf("\n rows = %d, cols = %d \n",rows, cols);
+  printf("\nrows = %d, cols = %d \n",rows, cols);
   min = (rows > cols ? cols : rows);
   printf("Minimum = %d \n", min);
   printf("\n a:\n");
@@ -73,12 +73,10 @@ int rows, cols, min;
 
   solve_qr_decomp(rows, qr, rows, cols, b, x);
 
-  test_qr(rows, qr, x, bt, rows, cols);
-
-  printf("\n qr:\n");
-  print_matrix(qr, rows, cols);
   printf("\n x:\n");
   print_matrix(x, rows, 1);
+
+  mvm(qr, rows, cols, x, bt);
 
   printf("\n Testfall qr*x = bt\n bt:\n");
   print_matrix(bt, rows, 1);
@@ -105,6 +103,25 @@ set_entry(double* a, int ld, int row, int col, double value){
 
     a[row+ld*col] = value;
 
+}
+
+void
+mvm(double* a, int rows, int cols, double* x, double* y){
+
+    int i,j;
+
+       for(i=0;i<rows;i++) {       //y wird 0 gesetzt
+
+        y[i]=0;
+
+    }
+
+    for(i=0;i<rows;i++) {
+
+        for(j=0;j<cols;j++) {
+            y[i]=y[i]+a[i+j*rows]*x[j];
+        }
+    }
 }
 
 /* Loest ein lineares Gleichungssystem durch Rueckwaertseinsetzen */
