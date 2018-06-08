@@ -1,9 +1,0 @@
-# depslib dependency file v1.0
-1527368464 source:c:\users\oliver\desktop\numinf\numinf\num5.9a\main.c
-	<stdio.h>
-	<assert.h>
-	<math.h>
-	"matrix.h"
-
-1524480711 c:\users\oliver\desktop\numinf\numinf\num5.9a\matrix.h
-
