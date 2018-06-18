@@ -187,10 +187,11 @@ lr_decomp(int ld, double* a){
 void
 solve_lr_decomp(int ld, const double* a, const double* b, double* x){
     int i,j;
-    double *l, *y;
+    double *l, *y, *bs;
 
     l = (double *) calloc(ld*ld, sizeof(double));
     y = (double *) calloc(ld, sizeof(double));
+    bs = (double *) calloc(ld, sizeof(double));
 
     /* Teilmatrix L wird erzeugt */
     for(i=0;i<ld;i++) {
@@ -200,28 +201,21 @@ solve_lr_decomp(int ld, const double* a, const double* b, double* x){
                 set_entry(l, ld, i, j, 1.0);
             }else{
                 if(i>j) {
-                    set_entry(l, ld, i, j, get_entry(a, ld, i, j));
+                    set_entry(l, ld, i, j, get_entry((double*)a, ld, i, j));
                 }else{
                     set_entry(l, ld, i, j, 0.0);
                 }
             }
         }
+        bs[i] = b[i];
     }
 
     /* Ly = b wird ausgewertet*/
-    forward_substlr(ld, l, b, y);
+    forward_substlr(ld, l, bs, y);
 
-    for(i=0;i<ld;i++) {
-        for(j=0;j<ld;j++) {
+    backward_subst(ld, (double*)a, y, x );
 
-            if(i>j) {
-                set_entry(a, ld, i, j, 0.0);
-            }
-        }
-    }
-
-    backward_subst(ld, a, y, x );
-
+    free(bs);
     free(l);
     free(y);
 }

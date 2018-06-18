@@ -100,6 +100,37 @@ mvm(double* a, int rows, int cols, double* x, double* y){
     }
 }
 
+void
+mvm_tridiag(int trans, double alpha, int n, double *l, double *d, double *u,
+	    double *x, double *y){
+
+  int i;
+
+  if(n == 0){
+    return;
+  }
+
+  if(n == 1) {
+    y[0] += alpha * d[0] * x[0];
+    return;
+  }
+
+  if(trans) {
+    y[0] += alpha * (d[0] * x[0] + l[0] * x[1]);
+    for(i = 1; i < n-1; i++){
+      y[i] += alpha * (u[i-1] * x[i-1] + d[i] * x[i] + l[i] * x[i+1]);
+    }
+    y[i] += alpha * (u[i-1] * x[i-1] + d[i] * x[i]);
+  }
+  else {
+    y[0] += alpha * (d[0] * x[0] + u[0] * x[1]);
+    for(i = 1; i < n-1; i++){
+      y[i] += alpha * (l[i-1] * x[i-1] + d[i] * x[i] + u[i] * x[i+1]);
+    }
+    y[i] += alpha * (l[i-1] * x[i-1] + d[i] * x[i]);
+  }
+}
+
 double
 skaldxminusy(double* x, double* y, double delta, int n) {
 
@@ -145,100 +176,203 @@ scalar_2(double* x, double* y, int n){
 void
 power_adaptive(double* a, int n, double* x, double eps){
 
-    int i;
-    double gamma, delta, *y;
+    if(norm_2(x,n) != 0.0) {    //Die Norm ist genau dann 0.0 wenn alle Elemente von x auch 0.0 sind
 
-    y = (double *) malloc(sizeof(double) * n);
+        int i;
+        double gamma, delta, *y;
 
-    gamma = norm_2(x, n);
-    if(gamma == 0.0) {
-        printf("Nenner wird zu klein, Division durch 0!\n");
-        return;
-    }
+        y = (double *) malloc(sizeof(double) * n);
 
-    for(i=0;i<n;i++) {
-        x[i] = x[i]/gamma;
-    }
+        gamma = norm_2(x, n);
 
-    mvm(a, n, n, x, y);
-
-    delta = scalar_2(x, y, n);
-
-    while(skaldxminusy(x, y, delta, n) > (eps*norm_2(y, n))) {
-
-        gamma = norm_2(y, n);
-        if(gamma == 0.0) {
-            printf("Nenner wird zu klein, Division durch 0!\n");
-            return;
-        }
-
-        for(i=0;i<n;i++){
-            x[i] = y[i]/gamma;
+        for(i=0;i<n;i++) {
+            x[i] = x[i]/gamma;
         }
 
         mvm(a, n, n, x, y);
-        delta =  scalar_2(x, y, n);
-    }
 
-    free(y);
+        delta = scalar_2(x, y, n);
+
+        while(skaldxminusy(x, y, delta, n) > (eps*norm_2(y, n))) {
+
+            gamma = norm_2(y, n);
+
+            for(i=0;i<n;i++){
+                   x[i] = y[i]/gamma;
+            }
+
+            mvm(a, n, n, x, y);
+            delta =  scalar_2(x, y, n);
+        }
+
+        free(y);
+
+    }else{
+        printf("X ist Nullvektor!");
+    }
 }
 
 
 void
 invit_adaptive(double* a, int n, double* x, double eps){
 
+    if(norm_2(x,n) != 0.0) {    //Die Norm ist genau dann 0.0 wenn alle Elemente von x auch 0.0 sind
+        int i,j;
+        double gamma, lambda, *y, *xs, *b;
+
+        y = (double *) malloc(sizeof(double) * n);
+        xs = (double *) malloc(sizeof(double) * n);
+        b = (double *) malloc(sizeof(double) * n*n);
+
+        //Sicherungskopien von a und x für qr Zerlegung
+        for(i=0;i<n;i++){
+            for(j=0;j<n;j++) {
+
+                set_entry(b, n, i, j, get_entry(a, n, i, j));
+            }
+            xs[i] = x[i];
+        }
+
+        gamma = norm_2(x, n);
+
+        for(i=0;i<n;i++) {
+            x[i] = x[i]/gamma;
+        }
+
+        qr_decomp(n, b, n, n);
+        solve_qr_decomp(n, b, n, n, xs, y);
+
+        lambda = scalar_2(x,y,n);
+
+        while(skaldxminusy(x, y, lambda, n) > (eps*norm_2(y, n))) {
+
+            gamma = norm_2(y, n);
+
+            for(i=0;i<n;i++){
+                x[i] = y[i]/gamma;
+                xs[i]=x[i];
+            }
+
+            solve_qr_decomp(n, b, n, n, xs, y);
+
+            lambda =  scalar_2(x, y, n);
+        }
+
+        free(b);
+        free(xs);
+        free(y);
+
+    }else{
+        printf("X ist Nullvektor!");
+    }
+}
+
+
+void
+inverse_iteration_withshift_tridiag(int n, double *l, double *d, double *u, double *x, double shift, int steps, double *eigenvalue, double *res){
+
     int i,j;
-    double gamma, delta, *y, *xs, *b;       //delta = Lambda im Skript
+    double gamma, *y;
 
     y = (double *) malloc(sizeof(double) * n);
-    xs = (double *) malloc(sizeof(double) * n);
-    b = (double *) malloc(sizeof(double) * n*n);
-
-    //Sicherungskopien von a und x für qr Zerlegung
-    for(i=0;i<n;i++){
-        for(j=0;j<n;j++) {
-
-            set_entry(b, n, i, j, get_entry(a, n, i, j));
-        }
-    }
 
     gamma = norm_2(x, n);
-    if(gamma == 0.0) {
-        printf("Nenner wird zu klein, Division durch 0!\n");
-        return;
-    }
 
     for(i=0;i<n;i++) {
         x[i] = x[i]/gamma;
-        xs[i] = x[i];
     }
 
-    qr_decomp(n, b, n, n);
-    solve_qr_decomp(n, b, n, n, xs, y);
+    //Shift
+    for(i=0;i<n;i++) {
+        d[i] = d[i] - shift;
+    }
 
-    delta = scalar_2(x,y,n);
+    lr_decomp_tridiag(n, l, d, u);
+    lr_solve_tridiag(n, l, d, u, x, y);
 
-    while(skaldxminusy(x, y, delta, n) > (eps*norm_2(y, n))) {
+    *eigenvalue = scalar_2(x,y,n);
+
+    for(j=0;j<steps;j++) {
 
         gamma = norm_2(y, n);
-        if(gamma == 0.0) {
-            printf("Nenner wird zu klein, Division durch 0!\n");
-            return;
-        }
 
         for(i=0;i<n;i++){
             x[i] = y[i]/gamma;
-            xs[i]=x[i];
-        }
+         }
 
-        solve_qr_decomp(n, b, n, n, xs, y);
+        lr_solve_tridiag(n, l, d, u, x, y);
 
-        delta =  scalar_2(x, y, n);
+        *eigenvalue =  scalar_2(x, y, n);
     }
 
-    free(b);
-    free(xs);
+    //y wird hier wiederverwendet und überschrieben
+    mvm_tridiag(0, 1, n, l, d, u, x, y);
+
+    for(i=0;i<n;i++) {
+        y[i] = y[i] - x[i]* *eigenvalue;
+    }
+
+    *res = norm_2(y,n);
+
     free(y);
+}
+
+void
+rayleigh_iteration_tridiag(int n, double *l, double *d, double *u, double *x, double shift, int steps, double *eigenvalue, double *res){
+
+    int i,j,t=0;
+    double gamma, *y;
+
+    y = (double *) malloc(sizeof(double) * n);
+
+    gamma = norm_2(x, n);
+
+    for(i=0;i<n;i++) {
+        x[i] = x[i]/gamma;
+    }
+
+    //Shift
+    for(i=0;i<n;i++) {
+        d[i] = d[i] - shift;
+    }
+
+    lr_decomp_tridiag(n, l, d, u);
+    lr_solve_tridiag(n, l, d, u, x, y);
+
+    *eigenvalue = scalar_2(x,y,n);
+
+    shift = (1 / *eigenvalue) + shift;
+
+    for(j=0;j<steps;j++) {
+
+        gamma = norm_2(y, n);
+
+        for(i=0;i<n;i++){
+            x[i] = y[i]/gamma;
+        }
+
+        lr_solve_tridiag(n, l, d, u, x, y);
+
+        *eigenvalue =  scalar_2(x, y, n);
+        shift = (1 / *eigenvalue) + shift;
+    }
+
+  //y wird hier wiederverwendet und überschrieben
+    mvm_tridiag(0, 1, n, l, d, u, x, y);
+
+    for(i=0;i<n;i++) {
+        y[i] = y[i] - x[i]* *eigenvalue;
+    }
+
+    *res = norm_2(y,n);
+
+    printf("test %d\n",t);
+    t++;
+
+    free(y);
+
+    printf("test %d\n",t);
+    t++;
 }
 
 /*----------------------------------------------------
@@ -415,6 +549,44 @@ solve_lr_pivot(int ld, const double* a, int* p, double* b, double* x){
 
     free(l);
     free(y);
+}
+
+/* Spezialfall Tridiagonal */
+
+void
+lr_decomp_tridiag(int n, double *l, double *d, double *u){
+
+    int i;
+
+    for(i=0;i<n-1;i++) {
+
+        l[i] = l[i]/d[i];
+        d[i+1] = d[i+1] - l[i]*u[i];
+    }
+}
+
+void
+lr_solve_tridiag(int n, double *l, double *d, double *u, double *b, double *x){
+
+    int i;
+
+    //modifizierter Forward sub Algorithmus
+    for(i=0;i<n-1;i++) {
+        x[i] = b[i];
+        b[i+1] = b[i+1]-l[i]*x[i];
+    }
+    x[n]=b[n];
+
+    //Vorbereitung für backward Sub
+    for(i=0;i<n;i++) {
+        b[i] = x[i];
+    }
+
+    //modifizierter Backward sub Alg.
+    for(i=n;i>0;i--) {
+        x[i] = b[i]/d[i];
+        b[i-1] = b[i-1] - u[i-1]*x[i];
+    }
 }
 
 

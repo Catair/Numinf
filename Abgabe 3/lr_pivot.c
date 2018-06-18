@@ -246,7 +246,7 @@ void solve_lr_pivot(int ld, const double* a, int* p, double* b, double* x){
                 set_entry(l, ld, i, j, 1.0);
             }else{
                 if(i>j) {
-                    set_entry(l, ld, i, j, get_entry(a, ld, i, j));
+                    set_entry(l, ld, i, j, get_entry((double*)a, ld, i, j));
                 }else{
                     set_entry(l, ld, i, j, 0.0);
                 }
@@ -257,16 +257,7 @@ void solve_lr_pivot(int ld, const double* a, int* p, double* b, double* x){
     /* Ly = b wird ausgewertet*/
     forward_substlr(ld, l, b, y);
 
-    for(i=0;i<ld;i++) {
-        for(j=0;j<ld;j++) {
-
-            if(i>j) {
-                set_entry(a, ld, i, j, 0.0);
-            }
-        }
-    }
-
-    backward_subst(ld, a, y, x );
+    backward_subst(ld, (double*)a, y, x );
 
     free(l);
     free(y);
